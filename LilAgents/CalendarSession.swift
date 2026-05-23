@@ -65,6 +65,14 @@ class CalendarSession {
     private var alertTimers: [String: Timer] = [:]
     private(set) var authStatus: EKAuthorizationStatus = .notDetermined
 
+    /// When non-nil, only events from calendars whose names are in this set are shown.
+    /// Comparison is case-insensitive. Set to `nil` (default) to include all calendars.
+    var includedCalendarNames: Set<String>? = nil
+
+    /// Calendar names to exclude. Ignored when `includedCalendarNames` is set.
+    /// Comparison is case-insensitive.
+    var excludedCalendarNames: Set<String> = []
+
     // Callbacks
     var onEventsRefreshed: (([CalendarEvent]) -> Void)?
     var onUpcomingAlert: ((CalendarEvent) -> Void)?
@@ -132,7 +140,20 @@ class CalendarSession {
         let start = now.addingTimeInterval(-10 * 60)
         let end = Calendar.current.startOfDay(for: now).addingTimeInterval(48 * 3600)
 
-        let predicate = store.predicateForEvents(withStart: start, end: end, calendars: nil)
+        // Resolve which EKCalendars to query based on the name filter
+        let allCalendars = store.calendars(for: .event)
+        let filteredCalendars: [EKCalendar]?
+        if let included = includedCalendarNames, !included.isEmpty {
+            let lowercased = included.map { $0.lowercased() }
+            filteredCalendars = allCalendars.filter { lowercased.contains($0.title.lowercased()) }
+        } else if !excludedCalendarNames.isEmpty {
+            let lowercased = excludedCalendarNames.map { $0.lowercased() }
+            filteredCalendars = allCalendars.filter { !lowercased.contains($0.title.lowercased()) }
+        } else {
+            filteredCalendars = nil  // nil = all calendars
+        }
+
+        let predicate = store.predicateForEvents(withStart: start, end: end, calendars: filteredCalendars)
         let ekEvents = store.events(matching: predicate)
 
         let calEvents: [CalendarEvent] = ekEvents.compactMap { ek in

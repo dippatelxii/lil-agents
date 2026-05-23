@@ -43,20 +43,19 @@ class LilAgentsController {
         characters = [char1, char2]
         characters.forEach { $0.controller = self }
 
-        // Start shared calendar session — only Bruce (char1) fires alert bubbles
-        let calSession = CalendarSession()
-        char1.calendarSession = calSession
-        char2.calendarSession = calSession
-        // Wire alert bubbles only to Bruce
-        char1.wireCalendarSession(calSession)
-        // Wire event refresh for Jazz too (so his popover updates)
-        calSession.onEventsRefreshed = { [weak char1, weak char2] events in
-            DispatchQueue.main.async {
-                char1?.calendarPopoverView?.showEvents(events)
-                char2?.calendarPopoverView?.showEvents(events)
-            }
-        }
-        calSession.start()
+        // Bruce — Personal calendar only
+        let bruceSession = CalendarSession()
+        bruceSession.includedCalendarNames = ["Personal"]
+        char1.calendarSession = bruceSession
+        char1.wireCalendarSession(bruceSession)
+        bruceSession.start()
+
+        // Jazz — everything except Personal
+        let jazzSession = CalendarSession()
+        jazzSession.excludedCalendarNames = ["Personal"]
+        char2.calendarSession = jazzSession
+        char2.wireCalendarSession(jazzSession)
+        jazzSession.start()
 
         setupDebugLine()
         startDisplayLink()
