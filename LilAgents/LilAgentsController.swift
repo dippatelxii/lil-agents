@@ -93,7 +93,7 @@ class LilAgentsController {
         win.hasShadow = false
         win.level = NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + 10)
         win.ignoresMouseEvents = true
-        win.collectionBehavior = [.moveToActiveSpace, .stationary]
+        win.collectionBehavior = [.canJoinAllSpaces, .stationary]
         win.orderOut(nil)
         debugWindow = win
     }
@@ -226,9 +226,22 @@ class LilAgentsController {
         let dockWidth: CGFloat
         let dockTopY: CGFloat
 
-        // Dock is on this screen — constrain to dock area
-        (dockX, dockWidth) = getDockIconArea(screenWidth: screenWidth)
-        dockTopY = screen.visibleFrame.origin.y
+        let isFullScreen = DockVisibility.isFullScreenMode(
+            screenFrame: screen.frame,
+            visibleFrame: screen.visibleFrame
+        )
+
+        if isFullScreen {
+            // No dock visible — spread characters across bottom of screen
+            let margin = screenWidth * 0.1
+            dockX = margin
+            dockWidth = screenWidth - margin * 2
+            dockTopY = screen.frame.minY  // very bottom
+        } else {
+            // Normal mode — constrain to dock icon area
+            (dockX, dockWidth) = getDockIconArea(screenWidth: screenWidth)
+            dockTopY = screen.visibleFrame.origin.y
+        }
 
         updateDebugLine(dockX: dockX, dockWidth: dockWidth, dockTopY: dockTopY)
 

@@ -150,7 +150,7 @@ class WalkerCharacter {
         window.hasShadow = false
         window.level = .statusBar
         window.ignoresMouseEvents = false
-        window.collectionBehavior = [.moveToActiveSpace, .stationary]
+        window.collectionBehavior = [.canJoinAllSpaces, .stationary]
 
         let hostView = CharacterContentView(frame: CGRect(x: 0, y: 0, width: displayWidth, height: displayHeight))
         hostView.character = self
@@ -375,7 +375,7 @@ class WalkerCharacter {
         win.backgroundColor = .clear
         win.hasShadow = true
         win.level = NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + 10)
-        win.collectionBehavior = [.moveToActiveSpace, .stationary]
+        win.collectionBehavior = [.canJoinAllSpaces, .stationary]
         let brightness = t.popoverBg.redComponent * 0.299 + t.popoverBg.greenComponent * 0.587 + t.popoverBg.blueComponent * 0.114
         win.appearance = NSAppearance(named: brightness < 0.5 ? .darkAqua : .aqua)
 
@@ -702,9 +702,9 @@ class WalkerCharacter {
         win.isOpaque = false
         win.backgroundColor = .clear
         win.hasShadow = true
-        win.level = NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + 5)
+        win.level = NSWindow.Level(rawValue: Int(CGShieldingWindowLevel()) - 1)
         win.ignoresMouseEvents = true
-        win.collectionBehavior = [.moveToActiveSpace, .stationary]
+        win.collectionBehavior = [.canJoinAllSpaces, .stationary]
 
         let container = NSView(frame: NSRect(x: 0, y: 0, width: w, height: h))
         container.wantsLayer = true
