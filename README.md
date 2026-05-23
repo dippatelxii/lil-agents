@@ -49,3 +49,5 @@ lil agents runs entirely on your Mac and sends no personal data anywhere.
 ## license
 
 MIT License. See [LICENSE](LICENSE) for details.
+
+--
