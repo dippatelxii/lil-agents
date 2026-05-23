@@ -1,5 +1,13 @@
 import AppKit
 
+// MARK: - Title Format (used by PopoverTheme)
+
+enum TitleFormat {
+    case uppercase       // "UPCOMING"
+    case lowercaseTilde  // "upcoming"
+    case capitalized     // "Upcoming"
+}
+
 struct PopoverTheme {
     let name: String
     // Popover
@@ -11,7 +19,6 @@ struct PopoverTheme {
     let titleText: NSColor
     let titleFont: NSFont
     let titleFormat: TitleFormat
-    func titleString(for provider: AgentProvider) -> String { provider.titleString(format: titleFormat) }
     let separatorColor: NSColor
     // Terminal
     let font: NSFont

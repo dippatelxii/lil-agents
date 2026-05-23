@@ -24,7 +24,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        controller?.characters.forEach { $0.session?.terminate() }
+        controller?.characters.forEach { $0.calendarSession?.terminate() }
     }
 
     // MARK: - Menu Bar
@@ -51,28 +51,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         soundItem.state = .on
         menu.addItem(soundItem)
 
-        // Provider submenu (applies to all characters)
-        let providerItem = NSMenuItem(title: "Provider", action: nil, keyEquivalent: "")
-        let providerMenu = NSMenu()
-        let currentProvider = controller?.characters.first?.provider ?? .claude
-        for (i, provider) in AgentProvider.allCases.enumerated() {
-            let item = NSMenuItem(title: provider.displayName, action: #selector(switchProvider(_:)), keyEquivalent: "")
-            item.tag = i
-            item.state = provider == currentProvider ? .on : .off
-            if !provider.isAvailable {
-                item.isEnabled = false
-            }
-            providerMenu.addItem(item)
-        }
-        providerMenu.addItem(NSMenuItem.separator())
-        let gatewayItem = NSMenuItem(title: "Advanced Settings\u{2026}", action: #selector(openGatewaySettings), keyEquivalent: "")
-        gatewayItem.tag = -1
-        providerMenu.addItem(gatewayItem)
-
-        providerItem.submenu = providerMenu
-        menu.addItem(providerItem)
-
-        // Size submenu (applies to all characters)
+        // Size submenu
         let sizeItem = NSMenuItem(title: "Size", action: nil, keyEquivalent: "")
         let sizeMenu = NSMenu()
         let currentSize = controller?.characters.first?.size ?? .large
@@ -118,7 +97,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu.addItem(NSMenuItem.separator())
 
-        let updateItem = NSMenuItem(title: "Check for Updates…", action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)), keyEquivalent: "")
+        let openCalItem = NSMenuItem(title: "Open Calendar", action: #selector(openCalendarApp), keyEquivalent: "o")
+        menu.addItem(openCalItem)
+
+        menu.addItem(NSMenuItem.separator())
+
+        let updateItem = NSMenuItem(title: "Check for Updates\u{2026}", action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)), keyEquivalent: "")
         updateItem.target = updaterController
         menu.addItem(updateItem)
 
@@ -147,47 +131,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let wasOpen = char.isIdleForPopover
             if wasOpen { char.popoverWindow?.orderOut(nil) }
             char.popoverWindow = nil
-            char.terminalView = nil
+            char.calendarPopoverView = nil
             char.thinkingBubbleWindow = nil
             if wasOpen {
                 char.createPopoverWindow()
-                if let session = char.session, !session.history.isEmpty {
-                    char.terminalView?.replayHistory(session.history)
-                }
                 char.updatePopoverPosition()
                 char.popoverWindow?.orderFrontRegardless()
                 char.popoverWindow?.makeKey()
-                if let terminal = char.terminalView {
-                    char.popoverWindow?.makeFirstResponder(terminal.inputField)
-                }
             }
         }
     }
 
-    @objc func switchProvider(_ sender: NSMenuItem) {
-        let idx = sender.tag
-        let allProviders = AgentProvider.allCases
-        guard idx < allProviders.count else { return }
-        let newProvider = allProviders[idx]
-
-        controller?.characters.forEach { char in
-            if char.provider == newProvider { return }
-            char.provider = newProvider
-            char.session?.terminate()
-            char.session = nil
-            char.popoverWindow?.orderOut(nil)
-            char.popoverWindow = nil
-            char.terminalView = nil
-            char.thinkingBubbleWindow?.orderOut(nil)
-            char.thinkingBubbleWindow = nil
-        }
-
-        if let providerMenu = sender.menu {
-            for item in providerMenu.items {
-                item.state = item.tag == idx ? .on : .off
-            }
-        }
-    }
 
     @objc func switchCharacterSize(_ sender: NSMenuItem) {
         let idx = sender.tag
@@ -244,14 +198,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         sender.state = WalkerCharacter.soundsEnabled ? .on : .off
     }
 
-    @objc func openGatewaySettings() {
-        OpenClawSession.showSettingsPanel { [weak self] in
-            // If OpenClaw is the active provider, reconnect with new settings
-            guard AgentProvider.current == .openclaw else { return }
-            self?.controller?.characters.forEach { char in
-                char.session?.terminate()
-                char.session = nil
-            }
+    @objc func openCalendarApp() {
+        if let url = URL(string: "calshow://") {
+            NSWorkspace.shared.open(url)
         }
     }
 

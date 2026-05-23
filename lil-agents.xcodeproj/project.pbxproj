@@ -16,6 +16,8 @@
 		A10000010000000000000021 /* CharacterContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000020000000000000021 /* CharacterContentView.swift */; };
 		A10000010000000000000022 /* ClaudeSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000020000000000000022 /* ClaudeSession.swift */; };
 		A10000010000000000000023 /* TerminalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000020000000000000023 /* TerminalView.swift */; };
+		A10000010000000000000088 /* CalendarSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000020000000000000088 /* CalendarSession.swift */; };
+		A10000010000000000000089 /* CalendarPopoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000020000000000000089 /* CalendarPopoverView.swift */; };
 		A10000010000000000000024 /* WalkerCharacter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000020000000000000024 /* WalkerCharacter.swift */; };
 		A10000010000000000000025 /* LilAgentsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000020000000000000025 /* LilAgentsController.swift */; };
 		A10000010000000000000030 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = A1000000B000000000000002 /* Sparkle */; };
@@ -39,18 +41,11 @@
 		A10000020000000000000010 /* Sounds */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Sounds; sourceTree = "<group>"; };
 		A10000020000000000000020 /* PopoverTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopoverTheme.swift; sourceTree = "<group>"; };
 		A10000020000000000000021 /* CharacterContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharacterContentView.swift; sourceTree = "<group>"; };
-		A10000020000000000000022 /* ClaudeSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeSession.swift; sourceTree = "<group>"; };
-		A10000020000000000000023 /* TerminalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalView.swift; sourceTree = "<group>"; };
+		A10000020000000000000088 /* CalendarSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarSession.swift; sourceTree = "<group>"; };
+		A10000020000000000000089 /* CalendarPopoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarPopoverView.swift; sourceTree = "<group>"; };
 		A10000020000000000000024 /* WalkerCharacter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalkerCharacter.swift; sourceTree = "<group>"; };
 		A10000020000000000000025 /* LilAgentsController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LilAgentsController.swift; sourceTree = "<group>"; };
-		A10000020000000000000030 /* AgentSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentSession.swift; sourceTree = "<group>"; };
-		A10000020000000000000031 /* ShellEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShellEnvironment.swift; sourceTree = "<group>"; };
-		A10000020000000000000032 /* CodexSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexSession.swift; sourceTree = "<group>"; };
-		A10000020000000000000033 /* CopilotSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopilotSession.swift; sourceTree = "<group>"; };
-		A10000020000000000000034 /* GeminiSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiSession.swift; sourceTree = "<group>"; };
-		A10000020000000000000035 /* OpenCodeSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenCodeSession.swift; sourceTree = "<group>"; };
 		A10000020000000000000036 /* DockVisibility.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockVisibility.swift; sourceTree = "<group>"; };
-		A10000020000000000000037 /* OpenClawSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenClawSession.swift; sourceTree = "<group>"; };
 		A10000030000000000000001 /* lil agents.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "lil agents.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -80,16 +75,9 @@
 				A10000020000000000000001 /* LilAgentsApp.swift */,
 				A10000020000000000000020 /* PopoverTheme.swift */,
 				A10000020000000000000021 /* CharacterContentView.swift */,
-				A10000020000000000000030 /* AgentSession.swift */,
-				A10000020000000000000031 /* ShellEnvironment.swift */,
-				A10000020000000000000022 /* ClaudeSession.swift */,
-				A10000020000000000000032 /* CodexSession.swift */,
-				A10000020000000000000033 /* CopilotSession.swift */,
-				A10000020000000000000034 /* GeminiSession.swift */,
-				A10000020000000000000035 /* OpenCodeSession.swift */,
-				A10000020000000000000037 /* OpenClawSession.swift */,
 				A10000020000000000000036 /* DockVisibility.swift */,
-				A10000020000000000000023 /* TerminalView.swift */,
+				A10000020000000000000088 /* CalendarSession.swift */,
+				A10000020000000000000089 /* CalendarPopoverView.swift */,
 				A10000020000000000000024 /* WalkerCharacter.swift */,
 				A10000020000000000000025 /* LilAgentsController.swift */,
 				A10000020000000000000002 /* walk-bruce-01.mov */,
@@ -201,6 +189,8 @@
 				A10000010000000000000037 /* DockVisibility.swift in Sources */,
 				A10000010000000000000038 /* OpenClawSession.swift in Sources */,
 				A10000010000000000000023 /* TerminalView.swift in Sources */,
+				A10000010000000000000088 /* CalendarSession.swift in Sources */,
+				A10000010000000000000089 /* CalendarPopoverView.swift in Sources */,
 				A10000010000000000000024 /* WalkerCharacter.swift in Sources */,
 				A10000010000000000000025 /* LilAgentsController.swift in Sources */,
 			);

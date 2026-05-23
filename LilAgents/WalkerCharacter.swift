@@ -22,15 +22,6 @@ enum CharacterSize: String, CaseIterable {
 class WalkerCharacter {
     let videoName: String
     let name: String
-    var provider: AgentProvider {
-        get {
-            let raw = UserDefaults.standard.string(forKey: "\(name)Provider") ?? "claude"
-            return AgentProvider(rawValue: raw) ?? .claude
-        }
-        set {
-            UserDefaults.standard.set(newValue.rawValue, forKey: "\(name)Provider")
-        }
-    }
     var size: CharacterSize {
         get {
             let raw = UserDefaults.standard.string(forKey: "\(name)Size") ?? "big"
@@ -83,14 +74,13 @@ class WalkerCharacter {
     // Popover state
     var isIdleForPopover = false
     var popoverWindow: NSWindow?
-    var terminalView: TerminalView?
-    var session: (any AgentSession)?
+    var calendarPopoverView: CalendarPopoverView?
+    var calendarSession: CalendarSession?
     var clickOutsideMonitor: Any?
     var escapeKeyMonitor: Any?
-    var currentStreamingText = ""
     weak var controller: LilAgentsController?
     var themeOverride: PopoverTheme?
-    var isAgentBusy: Bool { session?.isBusy ?? false }
+    var isAgentBusy: Bool { false }
     var thinkingBubbleWindow: NSWindow?
     private(set) var isManuallyVisible = true
     private var environmentHiddenAt: CFTimeInterval?
@@ -222,9 +212,6 @@ class WalkerCharacter {
             updatePopoverPosition()
             popoverWindow?.orderFrontRegardless()
             popoverWindow?.makeKey()
-            if let terminal = terminalView {
-                popoverWindow?.makeFirstResponder(terminal.inputField)
-            }
         }
 
         if wasBubbleVisibleBeforeEnvironmentHide {
@@ -260,21 +247,6 @@ class WalkerCharacter {
             createPopoverWindow()
         }
 
-        // Show static welcome message instead of Claude terminal
-        terminalView?.inputField.isEditable = false
-        terminalView?.inputField.placeholderString = ""
-        let welcome = """
-        hey! we're bruce and jazz — your lil dock agents.
-
-        click either of us to open a Claude AI chat. we'll walk around while you work and let you know when Claude's thinking.
-
-        check the menu bar icon (top right) for themes, sounds, and more options.
-
-        click anywhere outside to dismiss, then click us again to start chatting.
-        """
-        terminalView?.appendStreamingText(welcome)
-        terminalView?.endStreaming()
-
         updatePopoverPosition()
         popoverWindow?.orderFrontRegardless()
 
@@ -293,7 +265,7 @@ class WalkerCharacter {
         if let monitor = escapeKeyMonitor { NSEvent.removeMonitor(monitor); escapeKeyMonitor = nil }
         popoverWindow?.orderOut(nil)
         popoverWindow = nil
-        terminalView = nil
+        calendarPopoverView = nil
         isIdleForPopover = false
         isOnboarding = false
         isPaused = true
@@ -316,32 +288,24 @@ class WalkerCharacter {
         queuePlayer.pause()
         queuePlayer.seek(to: .zero)
 
-        // Always clear any bubble (thinking or completion) when popover opens
+        // Clear any bubble when popover opens
         showingCompletion = false
         hideBubble()
-
-        if session == nil {
-            let newSession = provider.createSession()
-            session = newSession
-            wireSession(newSession)
-            newSession.start()
-        }
 
         if popoverWindow == nil {
             createPopoverWindow()
         }
 
-        if let terminal = terminalView, let session = session, !session.history.isEmpty {
-            terminal.replayHistory(session.history)
+        // Refresh events when popover is opened
+        if let session = calendarSession {
+            if session.authStatus == .authorized || session.authStatus == .fullAccess {
+                session.fetchUpcomingEvents()
+            }
         }
 
         updatePopoverPosition()
         popoverWindow?.orderFrontRegardless()
         popoverWindow?.makeKey()
-
-        if let terminal = terminalView {
-            popoverWindow?.makeFirstResponder(terminal.inputField)
-        }
 
         // Remove old monitors before adding new ones
         removeEventMonitors()
@@ -372,18 +336,9 @@ class WalkerCharacter {
 
         isIdleForPopover = false
 
-        // If still waiting for a response, show thinking bubble immediately
-        // If completion came while popover was open, show completion bubble
         if showingCompletion {
-            // Reset expiry so user gets the full 3s from now
             completionBubbleExpiry = CACurrentMediaTime() + 3.0
             showBubble(text: currentPhrase, isCompletion: true)
-        } else if isAgentBusy {
-            // Force a fresh phrase pick and show immediately
-            currentPhrase = ""
-            lastPhraseUpdate = 0
-            updateThinkingPhrase()
-            showBubble(text: currentPhrase, isCompletion: false)
         }
 
         let delay = Double.random(in: 2.0...5.0)
@@ -408,7 +363,7 @@ class WalkerCharacter {
     func createPopoverWindow() {
         let t = resolvedTheme
         let popoverWidth: CGFloat = 420
-        let popoverHeight: CGFloat = 310
+        let popoverHeight: CGFloat = 340
 
         let win = KeyableWindow(
             contentRect: CGRect(x: 0, y: 0, width: popoverWidth, height: popoverHeight),
@@ -433,181 +388,138 @@ class WalkerCharacter {
         container.layer?.borderColor = t.popoverBorder.cgColor
         container.autoresizingMask = [.width, .height]
 
-        let titleBar = NSView(frame: NSRect(x: 0, y: popoverHeight - 28, width: popoverWidth, height: 28))
+        // Title bar
+        let titleBar = NSView(frame: NSRect(x: 0, y: popoverHeight - 36, width: popoverWidth, height: 36))
         titleBar.wantsLayer = true
         titleBar.layer?.backgroundColor = t.titleBarBg.cgColor
         container.addSubview(titleBar)
 
-        let titleLabel = NSTextField(labelWithString: t.titleString(for: provider))
+        // Calendar icon + title
+        let calIcon = NSTextField(labelWithString: "📅")
+        calIcon.font = NSFont.systemFont(ofSize: 14)
+        calIcon.sizeToFit()
+        calIcon.frame.origin = NSPoint(x: 12, y: (36 - calIcon.frame.height) / 2)
+        titleBar.addSubview(calIcon)
+
+        let titleLabel = NSTextField(labelWithString: titleBarLabel(format: t.titleFormat))
         titleLabel.font = t.titleFont
         titleLabel.textColor = t.titleText
         titleLabel.sizeToFit()
-        titleLabel.frame.origin = NSPoint(x: 12, y: 6)
+        titleLabel.frame.origin = NSPoint(x: calIcon.frame.maxX + 6, y: (36 - titleLabel.frame.height) / 2)
         titleBar.addSubview(titleLabel)
 
-        let arrowBtn = NSButton(frame: NSRect(x: titleLabel.frame.maxX + 2, y: 5, width: 16, height: 16))
-        arrowBtn.image = NSImage(systemSymbolName: "chevron.down", accessibilityDescription: "Switch provider")
-        arrowBtn.imageScaling = .scaleProportionallyDown
-        arrowBtn.bezelStyle = .inline
-        arrowBtn.isBordered = false
-        arrowBtn.contentTintColor = t.titleText.withAlphaComponent(0.75)
-        arrowBtn.target = self
-        arrowBtn.action = #selector(showProviderMenu(_:))
-        titleBar.addSubview(arrowBtn)
-
-        // Make the title label clickable too
-        let clickArea = NSButton(frame: NSRect(x: 0, y: 0, width: arrowBtn.frame.maxX + 4, height: 28))
-        clickArea.isTransparent = true
-        clickArea.target = self
-        clickArea.action = #selector(showProviderMenu(_:))
-        titleBar.addSubview(clickArea)
-
-        let refreshBtn = NSButton(frame: NSRect(x: popoverWidth - 48, y: 5, width: 16, height: 16))
+        // Refresh button
+        let refreshBtn = NSButton(frame: NSRect(x: popoverWidth - 52, y: (36 - 20) / 2, width: 20, height: 20))
         refreshBtn.image = NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: "Refresh")
         refreshBtn.imageScaling = .scaleProportionallyDown
         refreshBtn.bezelStyle = .inline
         refreshBtn.isBordered = false
         refreshBtn.contentTintColor = t.titleText.withAlphaComponent(0.75)
         refreshBtn.target = self
-        refreshBtn.action = #selector(refreshSessionFromButton)
+        refreshBtn.action = #selector(refreshCalendarFromButton)
         titleBar.addSubview(refreshBtn)
 
-        let copyBtn = NSButton(frame: NSRect(x: popoverWidth - 28, y: 5, width: 16, height: 16))
-        copyBtn.image = NSImage(systemSymbolName: "square.on.square", accessibilityDescription: "Copy")
-        copyBtn.imageScaling = .scaleProportionallyDown
-        copyBtn.bezelStyle = .inline
-        copyBtn.isBordered = false
-        copyBtn.contentTintColor = t.titleText.withAlphaComponent(0.75)
-        copyBtn.target = self
-        copyBtn.action = #selector(copyLastResponseFromButton)
-        titleBar.addSubview(copyBtn)
+        // Open Calendar.app button
+        let openBtn = NSButton(frame: NSRect(x: popoverWidth - 28, y: (36 - 20) / 2, width: 20, height: 20))
+        openBtn.image = NSImage(systemSymbolName: "calendar", accessibilityDescription: "Open Calendar")
+        openBtn.imageScaling = .scaleProportionallyDown
+        openBtn.bezelStyle = .inline
+        openBtn.isBordered = false
+        openBtn.contentTintColor = t.titleText.withAlphaComponent(0.75)
+        openBtn.target = self
+        openBtn.action = #selector(openCalendarApp)
+        titleBar.addSubview(openBtn)
 
-        let sep = NSView(frame: NSRect(x: 0, y: popoverHeight - 29, width: popoverWidth, height: 1))
+        // Separator
+        let sep = NSView(frame: NSRect(x: 0, y: popoverHeight - 37, width: popoverWidth, height: 1))
         sep.wantsLayer = true
         sep.layer?.backgroundColor = t.separatorColor.cgColor
         container.addSubview(sep)
 
-        let terminal = TerminalView(frame: NSRect(x: 0, y: 0, width: popoverWidth, height: popoverHeight - 29))
-        terminal.characterColor = characterColor
-        terminal.themeOverride = themeOverride
-        terminal.provider = provider
-        terminal.autoresizingMask = [.width, .height]
-        terminal.onSendMessage = { [weak self] message in
-            self?.session?.send(message: message)
+        // Calendar content view
+        let calView = CalendarPopoverView(frame: NSRect(x: 0, y: 0, width: popoverWidth, height: popoverHeight - 37))
+        calView.characterColor = characterColor
+        calView.themeOverride = themeOverride
+        calView.autoresizingMask = [.width, .height]
+        calView.onRefreshRequested = { [weak self] in
+            self?.calendarSession?.fetchUpcomingEvents()
         }
-        terminal.onClearRequested = { [weak self] in
-            self?.resetSession()
+        calView.onOpenCalendarRequested = { [weak self] in
+            self?.openCalendarApp()
         }
-        container.addSubview(terminal)
+        container.addSubview(calView)
+
+        // Show loading or events immediately
+        if let session = calendarSession {
+            switch session.authStatus {
+            case .denied, .restricted:
+                calView.showPermissionDenied()
+            default:
+                if session.events.isEmpty {
+                    calView.showLoading()
+                } else {
+                    calView.showEvents(session.events)
+                }
+            }
+        } else {
+            calView.showLoading()
+        }
 
         win.contentView = container
         popoverWindow = win
-        terminalView = terminal
+        calendarPopoverView = calView
     }
 
-    func resetSession() {
-        session?.terminate()
-        session = nil
-        currentStreamingText = ""
-        showingCompletion = false
-        currentPhrase = ""
-        completionBubbleExpiry = 0
-        hideBubble()
-        terminalView?.resetState()
-        terminalView?.showSessionMessage()
-        let newSession = provider.createSession()
-        session = newSession
-        wireSession(newSession)
-        newSession.start()
+    private func titleBarLabel(format: TitleFormat) -> String {
+        switch format {
+        case .uppercase:      return "UPCOMING"
+        case .lowercaseTilde: return "upcoming"
+        case .capitalized:    return "Upcoming"
+        }
     }
 
-    private func wireSession(_ session: any AgentSession) {
-        session.onText = { [weak self] text in
-            self?.currentStreamingText += text
-            self?.terminalView?.appendStreamingText(text)
-        }
+    @objc func refreshCalendarFromButton() {
+        calendarSession?.fetchUpcomingEvents()
+    }
 
-        session.onTurnComplete = { [weak self] in
-            self?.terminalView?.endStreaming()
-            self?.playCompletionSound()
-            self?.showCompletionBubble()
+    @objc func openCalendarApp() {
+        if let url = URL(string: "calshow://") {
+            NSWorkspace.shared.open(url)
         }
+    }
 
-        session.onError = { [weak self] text in
-            self?.terminalView?.appendError(text)
-        }
-
-        session.onToolUse = { [weak self] toolName, input in
+    func wireCalendarSession(_ session: CalendarSession) {
+        session.onEventsRefreshed = { [weak self] events in
             guard let self = self else { return }
-            let summary = self.formatToolInput(input)
-            self.terminalView?.appendToolUse(toolName: toolName, summary: summary)
+            DispatchQueue.main.async {
+                self.calendarPopoverView?.showEvents(events)
+            }
         }
 
-        session.onToolResult = { [weak self] summary, isError in
-            self?.terminalView?.appendToolResult(summary: summary, isError: isError)
-        }
-
-        session.onProcessExit = { [weak self] in
+        session.onUpcomingAlert = { [weak self] event in
             guard let self = self else { return }
-            self.terminalView?.endStreaming()
-            self.terminalView?.appendError("\(self.provider.displayName) session ended.")
-        }
-
-        session.onSessionReady = { }
-    }
-
-    @objc func showProviderMenu(_ sender: Any) {
-        let menu = NSMenu()
-        let menuFont = NSFont.systemFont(ofSize: 12, weight: .regular)
-        for p in AgentProvider.allCases {
-            let item = NSMenuItem(title: p.displayName, action: #selector(providerMenuItemSelected(_:)), keyEquivalent: "")
-            item.target = self
-            item.attributedTitle = NSAttributedString(string: p.displayName, attributes: [.font: menuFont])
-            item.representedObject = p.rawValue
-            if p == provider {
-                item.state = .on
+            DispatchQueue.main.async {
+                self.currentPhrase = event.alertBubbleText
+                self.showingCompletion = true
+                self.completionBubbleExpiry = CACurrentMediaTime() + 8.0
+                if !self.isIdleForPopover {
+                    self.showBubble(text: self.currentPhrase, isCompletion: true)
+                    self.playCompletionSound()
+                }
             }
-            if !p.isAvailable {
-                item.isEnabled = false
+        }
+
+        session.onAuthorizationChanged = { [weak self] status in
+            guard let self = self else { return }
+            DispatchQueue.main.async {
+                switch status {
+                case .denied, .restricted:
+                    self.calendarPopoverView?.showPermissionDenied()
+                default:
+                    break
+                }
             }
-            menu.addItem(item)
         }
-        // Show menu below the title bar area
-        if let titleBar = popoverWindow?.contentView?.subviews.first(where: { $0.frame.origin.y > 0 && $0.frame.height == 28 }) {
-            menu.popUp(positioning: nil, at: NSPoint(x: 10, y: 0), in: titleBar)
-        }
-    }
-
-    @objc func providerMenuItemSelected(_ sender: NSMenuItem) {
-        guard let raw = sender.representedObject as? String,
-              let newProvider = AgentProvider(rawValue: raw),
-              newProvider != provider else { return }
-        provider = newProvider
-        // Terminate existing session and rebuild popover for new provider
-        session?.terminate()
-        session = nil
-        popoverWindow?.orderOut(nil)
-        popoverWindow = nil
-        terminalView = nil
-        thinkingBubbleWindow?.orderOut(nil)
-        thinkingBubbleWindow = nil
-        openPopover()
-    }
-
-    @objc func copyLastResponseFromButton() {
-        terminalView?.handleSlashCommandPublic("/copy")
-    }
-
-    @objc func refreshSessionFromButton() {
-        guard !isOnboarding else { return }
-        resetSession()
-    }
-
-    private func formatToolInput(_ input: [String: Any]) -> String {
-        if let cmd = input["command"] as? String { return cmd }
-        if let path = input["file_path"] as? String { return path }
-        if let pattern = input["pattern"] as? String { return pattern }
-        return input.keys.sorted().prefix(3).joined(separator: ", ")
     }
 
     func updatePopoverPosition() {

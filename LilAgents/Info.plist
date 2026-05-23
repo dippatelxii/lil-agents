@@ -4,6 +4,8 @@
 <dict>
     <key>LSUIElement</key>
     <true/>
+    <key>NSCalendarsUsageDescription</key>
+    <string>lil agents shows your upcoming calendar events on your dock.</string>
     <key>SUFeedURL</key>
     <string>https://raw.githubusercontent.com/ryanstephen/lil-agents/main/appcast.xml</string>
     <key>SUPublicEDKey</key>

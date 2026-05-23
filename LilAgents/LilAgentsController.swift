@@ -12,16 +12,6 @@ class LilAgentsController {
         let char1 = WalkerCharacter(videoName: "walk-bruce-01", name: "Bruce")
         let char2 = WalkerCharacter(videoName: "walk-jazz-01", name: "Jazz")
 
-        // Detect available providers, then set first-run defaults
-        AgentProvider.detectAvailableProviders { [weak char1, weak char2] in
-            guard let char1 = char1, let char2 = char2 else { return }
-            if !UserDefaults.standard.bool(forKey: Self.onboardingKey) {
-                let first = AgentProvider.firstAvailable
-                char1.provider = first
-                char2.provider = first
-            }
-        }
-
         char1.accelStart = 3.0
         char1.fullSpeedStart = 3.75
         char1.decelStart = 8.0
@@ -52,6 +42,21 @@ class LilAgentsController {
 
         characters = [char1, char2]
         characters.forEach { $0.controller = self }
+
+        // Start shared calendar session — only Bruce (char1) fires alert bubbles
+        let calSession = CalendarSession()
+        char1.calendarSession = calSession
+        char2.calendarSession = calSession
+        // Wire alert bubbles only to Bruce
+        char1.wireCalendarSession(calSession)
+        // Wire event refresh for Jazz too (so his popover updates)
+        calSession.onEventsRefreshed = { [weak char1, weak char2] events in
+            DispatchQueue.main.async {
+                char1?.calendarPopoverView?.showEvents(events)
+                char2?.calendarPopoverView?.showEvents(events)
+            }
+        }
+        calSession.start()
 
         setupDebugLine()
         startDisplayLink()
